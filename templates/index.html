@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+      #chat-container {
+          border: 1px solid black;
+          padding: 5px;
+          max-width: 500px;
+      }
+
+      #chat-conversation {
+          width: 490px;
+          height: 800px;
+          overflow: scroll;
+      }
+
+      #chat-conversation .chat-message {
+          border: 1px solid black;
+          border-radius: 10px;
+          margin: 10px 0;
+          padding: 10px;
+      }
+
+      #chat-conversation .chat-message .chat-message-speaker {
+          font-weight: bold;
+      }
+
+      #chat-conversation .chat-message-chatbot {
+          background-color: lightgray;
+      }
+
+      #chat-conversation .chat-message-user {
+          background-color: lightblue;
+      }
+
+      #chat-input input[type=text] {
+          width: 400px;
+      }
+  </style>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+  <!-- JQuery JavaScript -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <!-- Custom JavaScript -->
+  <script>
+      $(document).ready(function () {
+          let questions = {};
+          let answers = {};
+
+          const printChatbotMessage = function (message) {
+              $("#chat-conversation").append('<div class="chat-message chat-message-chatbot"><span class="chat-message-speaker">Chatbot</span>: ' + message + '</div>');
+              $("#chat-conversation").scrollTop($("#chat-conversation").prop("scrollHeight"));
+          }
+
+          const printUserMessage = function (message) {
+              $("#chat-conversation").append('<div class="chat-message chat-message-user"><span class="chat-message-speaker">Me</span>: ' + message + '</div>');
+              $("#chat-conversation").scrollTop($("#chat-conversation").prop("scrollHeight"));
+          }
+
+          const questionAnswer = function (answer) {
+              if (answer == null) {
+                  printChatbotMessage("Welcome!")
+              } else {
+                  // Display the user answer in chat conversation
+                  printUserMessage(answer);
+
+                  // Save answer for current question
+                  let questionKey = Object.keys(questions)[0];
+                  answers[questionKey] = answer;
+
+                  // Delete the question to mark it as answered
+                  delete questions[questionKey];
+              }
+
+              if (Object.keys(questions).length > 0) {
+                  // Ask a new question
+                  const questionKey = Object.keys(questions)[0];
+                  let newQuestion = questions[questionKey];
+
+                  printChatbotMessage(newQuestion);
+              } else {
+                  // All questions are answered - query model on server side for a prediction
+                  $.ajax({
+                      type: "POST",
+                      url: "/api/predict",
+                      dataType: "json",
+                      contentType: "application/json",
+                      data: JSON.stringify(answers),
+                      success: function(data) {
+                          const score = data["score"];
+                          if (score == 0) {
+                              printChatbotMessage("You do not have any breast cancer");
+                          } else {
+                              printChatbotMessage("Please visit a medical expert!");
+                          }
+
+                          printChatbotMessage("Thank you for using this service!");
+
+                          $("#chat-input input").prop("disabled", true);
+                      }
+                    });
+              }
+          }
+
+          $.getJSON("/api/questions", function (data) {
+              for (const key in data) {
+                  questions[key] = data[key];
+              }
+              questionAnswer(null);
+          });
+
+          $("#chat-input input[type=button]").click(function () {
+              const answer = $("#chat-input input[type=text]").val();
+              questionAnswer(answer);
+          });
+      })
+  </script>
+  <title>Chatbot</title>
+</head>
+<body>
+<div id="chat-container" class="container-sm">
+  <div id="chat-conversation"></div>
+  <div id="chat-input">
+    <input type="text"/>
+    <input type="button" value="Send"/>
+  </div>
+</div>
+<!-- Optional JavaScript; choose one of the two! -->
+<!-- Option 1: Bootstrap Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+        crossorigin="anonymous"></script>
+<!-- Option 2: Separate Popper and Bootstrap JS -->
+<!--
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js" integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js" integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>
+-->
+</body>
+</html>
